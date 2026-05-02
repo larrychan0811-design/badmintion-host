@@ -37,8 +37,11 @@ export default function App() {
   const [editGameData, setEditGameData] = useState({ date: '', time: '', duration: 2, level: '', location: '', courtNumber: '' });
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
+  
+  // 刪除確認防呆狀態
+  const [confirmDeleteGameId, setConfirmDeleteGameId] = useState(null);
 
-  const locationOptions = ['坑口', '將軍澳', '單車館', '調景嶺', '寶琳', '其他'];
+  const locationOptions = ['坑口', '寶琳', '將軍澳', '單車館', '調景嶺', '其他'];
   const levelOptions = ['初級', '初-近初中', '練習場'];
   const durationOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4];
   const courtOptions = [1, 2, 3, 4, 5, 6, 7, 8, '自定'];
@@ -112,6 +115,14 @@ export default function App() {
   };
 
   const cancelEditingGame = () => setEditingGameId(null);
+
+  // 新增刪除遊戲功能
+  const handleDeleteGame = (id) => {
+    setGames(games.filter(g => g.id !== id));
+    // 同時刪除該遊戲底下所有的參加者名單
+    setJoiners(joiners.filter(j => j.gameId !== id));
+    setConfirmDeleteGameId(null);
+  };
 
   const handleGoToRoster = (gameId) => {
     setCurrentView('joiners');
@@ -201,7 +212,7 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+              <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 w-full">
                 <div className="space-y-2">
                   <div className="font-bold text-slate-900 text-lg flex items-center flex-wrap gap-2">
                     {game.date} <span className="text-slate-400 font-normal">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
@@ -221,28 +232,55 @@ export default function App() {
                     <MapPin size={16} /> {game.location}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 self-end md:self-auto mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
-                  {!isClickableOnHome && (
+                <div className="flex flex-wrap items-center gap-2 self-end xl:self-auto mt-2 xl:mt-0" onClick={e => e.stopPropagation()}>
+                  
+                  {/* 修改按鈕 (兩邊頁面都顯示) */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); startEditingGame(game); }}
+                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
+                    title="Edit Game"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+
+                  {/* 刪除按鈕與防呆機制 (兩邊頁面都顯示) */}
+                  {confirmDeleteGameId === game.id ? (
                     <button 
-                      onClick={() => startEditingGame(game)}
-                      className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
-                      title="Edit Game"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }}
+                      className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shrink-0 flex items-center gap-1 shadow-sm h-[42px]"
                     >
-                      <Edit2 size={18} />
+                      <Trash2 size={16} /> 確定?
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setConfirmDeleteGameId(game.id); 
+                        setTimeout(() => setConfirmDeleteGameId(current => current === game.id ? null : current), 3000); 
+                      }}
+                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors shrink-0"
+                      title="Delete Game"
+                    >
+                      <Trash2 size={18} />
                     </button>
                   )}
+
+                  {/* 同步日曆按鈕 (為了節省空間，在手機上可能需要把文字拿掉，這裡改簡短文字) */}
                   {showSyncButton && (
                     <a 
                       href={generateGoogleCalendarLink(game)} 
                       target="_blank" 
                       rel="noreferrer"
-                      className={`${isFull ? 'bg-orange-200 text-orange-800 hover:bg-orange-300' : 'bg-slate-900 text-yellow-400 hover:bg-slate-800'} px-5 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-2 whitespace-nowrap`}
+                      onClick={e => e.stopPropagation()}
+                      className={`${isFull ? 'bg-orange-200 text-orange-800 hover:bg-orange-300' : 'bg-slate-900 text-yellow-400 hover:bg-slate-800'} px-4 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 whitespace-nowrap h-[42px]`}
                     >
-                      <CalendarPlus size={18} /> Sync Calendar
+                      <CalendarPlus size={18} /> Sync
                     </a>
                   )}
+                  
+                  {/* 跳轉箭頭 (僅首頁顯示) */}
                   {isClickableOnHome && (
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 hover:bg-yellow-400 hover:text-slate-900 flex items-center justify-center text-slate-400 shrink-0 transition-colors cursor-pointer ml-1">
                       <ArrowRight size={20} />
                     </div>
                   )}
@@ -295,7 +333,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto mt-6 mb-8 px-4 animate-in slide-in-from-bottom-4 fade-in duration-500">
           <div className="flex justify-between items-end mb-4 px-2">
             <h3 className="text-xl font-bold text-slate-900">Upcoming Games</h3>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Click card to view roster</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:block">Click card to view roster</span>
           </div>
           {renderGamesList(true, true)}
         </div>
