@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Plus, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, ChevronLeft, ChevronRight, Activity, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Calendar, Users, Plus, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, ChevronLeft, ChevronRight, Activity, Trash2, Edit2, Check, X, Hash } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home');
@@ -20,29 +20,28 @@ export default function App() {
     return savedJoiners ? JSON.parse(savedJoiners) : [];
   });
 
-  // 當 games 資料變動時，自動存入記憶體
   useEffect(() => {
     localStorage.setItem('badminton_games', JSON.stringify(games));
   }, [games]);
 
-  // 當 joiners 資料變動時，自動存入記憶體
   useEffect(() => {
     localStorage.setItem('badminton_joiners', JSON.stringify(joiners));
   }, [joiners]);
   // ------------------------------------
 
-  const [newGame, setNewGame] = useState({ date: getTodayStr(), time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', level: '初級' });
+  const [newGame, setNewGame] = useState({ date: getTodayStr(), time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級' });
   const [newJoiner, setNewJoiner] = useState({ name: '', gameId: '' });
   const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const [editingGameId, setEditingGameId] = useState(null);
-  const [editGameData, setEditGameData] = useState({ date: '', time: '', duration: 2, level: '', location: '' });
+  const [editGameData, setEditGameData] = useState({ date: '', time: '', duration: 2, level: '', location: '', courtNumber: '' });
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
 
   const locationOptions = ['坑口', '將軍澳', '單車館', '調景嶺', '其他'];
   const levelOptions = ['初級', '初-近初中', '練習場'];
   const durationOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4];
+  const courtOptions = [1, 2, 3, 4, 5, 6, 7, 8, '自定'];
 
   const timeOptions = [];
   for (let i = 7; i <= 22; i++) {
@@ -53,21 +52,19 @@ export default function App() {
   const handleCreateGame = (e) => {
     e.preventDefault();
     const finalLocation = newGame.locationPreset === '其他' ? newGame.customLocation : newGame.locationPreset;
+    const finalCourt = newGame.courtPreset === '自定' ? newGame.customCourt : newGame.courtPreset;
     
-    // 如果日期、時間、地點沒填寫，就不執行
-    if (!newGame.date || !newGame.time || !finalLocation) return;
+    if (!newGame.date || !newGame.time || !finalLocation || !finalCourt) return;
     
     const gameId = crypto.randomUUID();
-    const game = { id: gameId, date: newGame.date, time: newGame.time, duration: newGame.duration, location: finalLocation, level: newGame.level };
+    const game = { id: gameId, date: newGame.date, time: newGame.time, duration: newGame.duration, location: finalLocation, courtNumber: finalCourt, level: newGame.level };
     
     setGames([...games, game]);
     
-    // 自動把 Larry 加入為第一位參加者
     const joinerId = crypto.randomUUID();
     setJoiners([...joiners, { id: joinerId, name: 'Larry', gameId: gameId }]);
     
-    // 重設表單
-    setNewGame({ date: newGame.date, time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', level: '初級' });
+    setNewGame({ date: newGame.date, time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級' });
   };
 
   const handleAddJoiner = (e) => {
@@ -105,7 +102,7 @@ export default function App() {
 
   const startEditingGame = (game) => {
     setEditingGameId(game.id);
-    setEditGameData({ date: game.date, time: game.time, duration: game.duration || 2, level: game.level, location: game.location });
+    setEditGameData({ date: game.date, time: game.time, duration: game.duration || 2, level: game.level, location: game.location, courtNumber: game.courtNumber || '' });
   };
 
   const saveEditingGame = (id) => {
@@ -116,15 +113,27 @@ export default function App() {
 
   const cancelEditingGame = () => setEditingGameId(null);
 
+  const handleGoToRoster = (gameId) => {
+    setCurrentView('joiners');
+    setTimeout(() => {
+      const element = document.getElementById(`roster-${gameId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-4', 'ring-yellow-400', 'border-yellow-400');
+        setTimeout(() => element.classList.remove('ring-4', 'ring-yellow-400', 'border-yellow-400'), 2000);
+      }
+    }, 150);
+  };
+
   const generateGoogleCalendarLink = (game) => {
     const dateStr = game.date.replace(/-/g, '');
     const timeStr = game.time.replace(':', '') + '00';
     const startDateTime = `${dateStr}T${timeStr}`;
     const endTimeFormatted = calculateEndTime(game.time, game.duration || 2).replace(':', '') + '00';
     const endDateTime = `${dateStr}T${endTimeFormatted}`;
-    const title = encodeURIComponent(`${game.location} | ${game.level}`);
+    const title = encodeURIComponent(`${game.location} ${game.courtNumber ? `(場號:${game.courtNumber})` : ''} | ${game.level}`);
     const location = encodeURIComponent(game.location);
-    const details = encodeURIComponent('Badminton game organized via Host Manager.');
+    const details = encodeURIComponent('Badminton game organized via Field & Shuttle.');
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}&location=${location}`;
   };
 
@@ -140,17 +149,21 @@ export default function App() {
   };
 
   // --- Sub-components (Views) ---
-  const renderGamesList = (showSyncButton = true) => (
+  const renderGamesList = (showSyncButton = true, isClickableOnHome = false) => (
     <div className="space-y-4">
       {games.map(game => {
         const count = getJoinerCount(game.id);
         const isFull = count >= 6;
         
         return (
-          <div key={game.id} className={`p-5 rounded-2xl border shadow-sm flex flex-col transition-all ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+          <div 
+            key={game.id} 
+            onClick={() => isClickableOnHome && handleGoToRoster(game.id)}
+            className={`p-5 rounded-2xl border shadow-sm flex flex-col transition-all ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'} ${isClickableOnHome ? 'cursor-pointer hover:border-yellow-400 hover:shadow-md hover:-translate-y-1' : ''}`}
+          >
             {editingGameId === game.id ? (
-              <div className="flex flex-col gap-3 w-full animate-in fade-in">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="flex flex-col gap-3 w-full animate-in fade-in" onClick={e => e.stopPropagation()}>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500">Date</label>
                     <input type="date" value={editGameData.date} onChange={e => setEditGameData({...editGameData, date: e.target.value})} className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-yellow-400 text-sm font-medium bg-slate-50 text-slate-900" />
@@ -166,6 +179,10 @@ export default function App() {
                     <select value={editGameData.duration} onChange={e => setEditGameData({...editGameData, duration: parseFloat(e.target.value)})} className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-yellow-400 text-sm font-medium bg-slate-50 text-slate-900 appearance-none">
                       {durationOptions.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-500">Court</label>
+                    <input type="text" value={editGameData.courtNumber} onChange={e => setEditGameData({...editGameData, courtNumber: e.target.value})} className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-yellow-400 text-sm font-medium bg-slate-50 text-slate-900" placeholder="Court" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500">Level</label>
@@ -188,7 +205,13 @@ export default function App() {
                 <div className="space-y-2">
                   <div className="font-bold text-slate-900 text-lg flex items-center flex-wrap gap-2">
                     {game.date} <span className="text-slate-400 font-normal">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
-                    <span className="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider">{game.level}</span>
+                    {game.courtNumber && (
+                      <>
+                        <span className="text-slate-400 font-normal">|</span>
+                        <span className="text-yellow-600">場號: {game.courtNumber}</span>
+                      </>
+                    )}
+                    <span className="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ml-1">{game.level}</span>
                     <span className={`text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-blue-50 text-blue-700'}`}>
                       {count} / 6 Joined
                     </span>
@@ -198,14 +221,16 @@ export default function App() {
                     <MapPin size={16} /> {game.location}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 self-end md:self-auto mt-2 md:mt-0">
-                  <button 
-                    onClick={() => startEditingGame(game)}
-                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
-                    title="Edit Game"
-                  >
-                    <Edit2 size={18} />
-                  </button>
+                <div className="flex items-center gap-2 self-end md:self-auto mt-2 md:mt-0" onClick={e => e.stopPropagation()}>
+                  {!isClickableOnHome && (
+                    <button 
+                      onClick={() => startEditingGame(game)}
+                      className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
+                      title="Edit Game"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                  )}
                   {showSyncButton && (
                     <a 
                       href={generateGoogleCalendarLink(game)} 
@@ -215,6 +240,11 @@ export default function App() {
                     >
                       <CalendarPlus size={18} /> Sync Calendar
                     </a>
+                  )}
+                  {isClickableOnHome && (
+                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+                      <ArrowRight size={20} />
+                    </div>
                   )}
                 </div>
               </div>
@@ -263,8 +293,11 @@ export default function App() {
 
       {games.length > 0 && (
         <div className="max-w-2xl mx-auto mt-6 mb-8 px-4 animate-in slide-in-from-bottom-4 fade-in duration-500">
-          <h3 className="text-xl font-bold text-slate-900 mb-4 px-2">Upcoming Games</h3>
-          {renderGamesList(true)}
+          <div className="flex justify-between items-end mb-4 px-2">
+            <h3 className="text-xl font-bold text-slate-900">Upcoming Games</h3>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Click card to view roster</span>
+          </div>
+          {renderGamesList(true, true)}
         </div>
       )}
     </div>
@@ -344,37 +377,7 @@ export default function App() {
           </div>
 
           <div className="space-y-4">
-            <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><Activity size={18} className="text-slate-400"/> Match Level</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {levelOptions.map(level => {
-                const isSelected = newGame.level === level;
-                return (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setNewGame({...newGame, level})}
-                    className={`relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 outline-none ${
-                      isSelected 
-                        ? 'border-yellow-400 bg-white shadow-sm' 
-                        : 'border-transparent bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className={`font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
-                      {level}
-                    </span>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
-                        <Check size={14} className="text-white" strokeWidth={3} />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><MapPin size={18} className="text-slate-400"/> Location</label>
+            <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><MapPin size={18} className="text-slate-400"/> Location & Court</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {locationOptions.map(loc => {
                 const isSelected = newGame.locationPreset === loc;
@@ -413,6 +416,64 @@ export default function App() {
                 />
               </div>
             )}
+            
+            <div className="pt-4 flex flex-col sm:flex-row gap-3">
+              <div className="relative w-full sm:w-1/3">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Hash size={18} className="text-slate-400"/>
+                </div>
+                <select 
+                  required
+                  value={newGame.courtPreset}
+                  onChange={(e) => setNewGame({...newGame, courtPreset: e.target.value})}
+                  className="w-full pl-12 pr-5 py-4 border-2 border-slate-200 rounded-2xl focus:ring-0 focus:border-yellow-400 outline-none transition-all appearance-none bg-slate-50 font-medium text-slate-900 hover:bg-slate-100"
+                >
+                  {courtOptions.map(c => <option key={c} value={c}>{c === '自定' ? '自定場號' : `場號 ${c}`}</option>)}
+                </select>
+              </div>
+              {newGame.courtPreset === '自定' && (
+                <div className="w-full flex-1">
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="請輸入自定場號 (例: A場)..."
+                    value={newGame.customCourt}
+                    onChange={(e) => setNewGame({...newGame, customCourt: e.target.value})}
+                    className="w-full px-5 py-4 border-2 border-slate-200 rounded-2xl focus:ring-0 focus:border-yellow-400 outline-none transition-all bg-slate-50 font-medium text-slate-900"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><Activity size={18} className="text-slate-400"/> Match Level</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {levelOptions.map(level => {
+                const isSelected = newGame.level === level;
+                return (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setNewGame({...newGame, level})}
+                    className={`relative flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 outline-none ${
+                      isSelected 
+                        ? 'border-yellow-400 bg-white shadow-sm' 
+                        : 'border-transparent bg-slate-50 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span className={`font-semibold ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
+                      {level}
+                    </span>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
+                        <Check size={14} className="text-white" strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <button 
@@ -428,7 +489,7 @@ export default function App() {
       {games.length === 0 ? (
         <p className="text-center text-slate-500 py-8 font-medium">No games scheduled yet.</p>
       ) : (
-        renderGamesList(true)
+        renderGamesList(true, false)
       )}
     </div>
   );
@@ -469,7 +530,7 @@ export default function App() {
                   const isFull = getJoinerCount(game.id) >= 6;
                   return (
                     <option key={game.id} value={game.id} disabled={isFull}>
-                      {game.date} | {game.time}-{calculateEndTime(game.time, game.duration)} | {game.level} | {game.location} {isFull ? '(FULL - Max 6)' : ''}
+                      {game.date} | {game.time}-{calculateEndTime(game.time, game.duration)} {game.courtNumber ? `(場號:${game.courtNumber})` : ''} | {game.location} {isFull ? '(FULL - Max 6)' : ''}
                     </option>
                   );
                 })}
@@ -512,7 +573,7 @@ export default function App() {
       {games.length > 0 && (
         <>
           <h3 className="text-xl font-bold text-slate-900 mb-4 px-2">Rosters</h3>
-          <div className="space-y-6">
+          <div className="space-y-6 pb-12">
             {games.map(game => {
               const gameJoiners = joiners.filter(j => j.gameId === game.id);
               if (gameJoiners.length === 0) return null;
@@ -520,10 +581,18 @@ export default function App() {
               const isFull = gameJoiners.length >= 6;
               
               return (
-                <div key={game.id} className={`rounded-3xl border shadow-sm overflow-hidden transition-all ${isFull ? 'border-orange-200' : 'border-slate-200 bg-white'}`}>
+                <div id={`roster-${game.id}`} key={game.id} className={`rounded-3xl border shadow-sm overflow-hidden transition-all duration-500 ${isFull ? 'border-orange-200' : 'border-slate-200 bg-white'}`}>
                   <div className={`border-b px-6 py-4 flex justify-between items-center ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
                     <div className={`font-bold flex items-center flex-wrap gap-2 ${isFull ? 'text-orange-900' : 'text-slate-900'}`}>
                       <span>{game.date} @ {game.time} - {calculateEndTime(game.time, game.duration)}</span>
+                      
+                      {game.courtNumber && (
+                        <>
+                          <span className={`font-normal ${isFull ? 'text-orange-400' : 'text-slate-400'}`}>|</span>
+                          <span className={`${isFull ? 'text-orange-700' : 'text-yellow-600'}`}>場號: {game.courtNumber}</span>
+                        </>
+                      )}
+
                       <span className={`font-normal ${isFull ? 'text-orange-400' : 'text-slate-400'}`}>|</span>
                       <span className="flex items-center gap-1"><MapPin size={16}/> {game.location}</span>
                       <span className={`text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'}`}>
@@ -610,7 +679,7 @@ export default function App() {
             <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
               <Trophy className="text-yellow-400" size={20} />
             </div>
-            <span>Badminton<span className="text-yellow-500">Host</span></span>
+            <span>Field <span className="text-yellow-500">&</span> Shuttle</span>
           </div>
           
           {currentView !== 'home' && (
