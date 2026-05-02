@@ -9,6 +9,14 @@ export default function App() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // 取得星期幾的輔助函式
+  const getWeekday = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    return weekdays[date.getDay()];
+  };
+
   // --- 使用 Local Storage 來記憶資料 ---
   const [games, setGames] = useState(() => {
     const savedGames = localStorage.getItem('badminton_games');
@@ -215,7 +223,7 @@ export default function App() {
               <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 w-full">
                 <div className="space-y-2">
                   <div className="font-bold text-slate-900 text-lg flex items-center flex-wrap gap-2">
-                    {game.date} <span className="text-slate-400 font-normal">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
+                    {game.date} {getWeekday(game.date)} <span className="text-slate-400 font-normal">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
                     {game.courtNumber && (
                       <>
                         <span className="text-slate-400 font-normal">|</span>
@@ -568,7 +576,7 @@ export default function App() {
                   const isFull = getJoinerCount(game.id) >= 6;
                   return (
                     <option key={game.id} value={game.id} disabled={isFull}>
-                      {game.date} | {game.time}-{calculateEndTime(game.time, game.duration)} {game.courtNumber ? `(場號:${game.courtNumber})` : ''} | {game.location} {isFull ? '(FULL - Max 6)' : ''}
+                      {game.date} {getWeekday(game.date)} | {game.time}-{calculateEndTime(game.time, game.duration)} {game.courtNumber ? `(場號:${game.courtNumber})` : ''} | {game.location} {isFull ? '(FULL - Max 6)' : ''}
                     </option>
                   );
                 })}
@@ -622,7 +630,7 @@ export default function App() {
                 <div id={`roster-${game.id}`} key={game.id} className={`rounded-3xl border shadow-sm overflow-hidden transition-all duration-500 ${isFull ? 'border-orange-200' : 'border-slate-200 bg-white'}`}>
                   <div className={`border-b px-6 py-4 flex justify-between items-center ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
                     <div className={`font-bold flex items-center flex-wrap gap-2 ${isFull ? 'text-orange-900' : 'text-slate-900'}`}>
-                      <span>{game.date} @ {game.time} - {calculateEndTime(game.time, game.duration)}</span>
+                      <span>{game.date} {getWeekday(game.date)} @ {game.time} - {calculateEndTime(game.time, game.duration)}</span>
                       
                       {game.courtNumber && (
                         <>
