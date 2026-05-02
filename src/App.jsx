@@ -38,7 +38,7 @@ export default function App() {
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
 
-  const locationOptions = ['坑口', '將軍澳', '單車館', '調景嶺', '其他'];
+  const locationOptions = ['坑口', '將軍澳', '單車館', '調景嶺', '寶琳', '其他'];
   const levelOptions = ['初級', '初-近初中', '練習場'];
   const durationOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4];
   const courtOptions = [1, 2, 3, 4, 5, 6, 7, 8, '自定'];
