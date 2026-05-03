@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Plus, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, Activity, Trash2, Edit2, Check, X, Hash, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Users, Plus, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, ChevronLeft, ChevronRight, Activity, Trash2, Edit2, Check, X, Hash, Copy } from 'lucide-react';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'games', 'joiners'
+  const [currentView, setCurrentView] = useState('home'); 
   
   const getTodayStr = () => {
     const d = new Date();
@@ -66,6 +66,8 @@ export default function App() {
     return {
       dateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       date: d.getDate(),
+      month: d.getMonth() + 1,
+      year: d.getFullYear(),
       isToday: d.toDateString() === new Date().toDateString(),
       isPast: isPast
     };
@@ -147,6 +149,7 @@ export default function App() {
   const [confirmDeleteGameId, setConfirmDeleteGameId] = useState(null);
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
+  const [copiedGameId, setCopiedGameId] = useState(null);
 
   const locationOptions = ['坑口', '寶琳', '將軍澳', '單車館', '調景嶺', '其他'];
   const levelOptions = ['初級', '初-近初中', '練習場'];
@@ -285,6 +288,39 @@ export default function App() {
     const endHours = Math.floor(totalMins / 60) % 24;
     const endMins = totalMins % 60;
     return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+  };
+
+  // 複製格式化內容
+  const handleCopyGameInfo = (e, game) => {
+    e.stopPropagation();
+    const d = new Date(game.date);
+    if(isNaN(d.getTime())) return;
+    
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const weekday = getWeekday(game.date);
+    const timeRange = `${game.time}-${calculateEndTime(game.time, game.duration)}`;
+    const displayLocation = formatLocation(game.location);
+    const courtStr = game.courtNumber ? ` 第${game.courtNumber}號場` : '';
+
+    const copyText = `已留一位\n${month}月${day}日 ${weekday} ${timeRange} ${displayLocation}${courtStr}`;
+
+    const textArea = document.createElement("textarea");
+    textArea.value = copyText;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      setCopiedGameId(game.id);
+      setTimeout(() => setCopiedGameId(null), 2000);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+    document.body.removeChild(textArea);
   };
 
   // --- Sub-components (Views) ---
@@ -653,7 +689,7 @@ export default function App() {
             type="submit"
             className="w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2 text-[15px] sm:text-lg mt-2"
           >
-            <Plus size={20} /> Create Game
+            Create
           </button>
         </form>
       </div>
@@ -662,7 +698,7 @@ export default function App() {
       {upcomingGames.length === 0 ? (
         <p className="text-center text-slate-500 py-8 font-medium">No games scheduled yet.</p>
       ) : (
-        renderGamesList(upcomingGames, true, false)
+        renderGamesList(upcomingGames, true, true)
       )}
     </div>
   );
@@ -740,7 +776,7 @@ export default function App() {
               disabled={selectedGameIsFull}
               className={`w-full font-bold py-3 sm:py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2 text-[15px] sm:text-base mt-2 ${selectedGameIsFull ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-yellow-400 hover:bg-yellow-500 text-slate-900'}`}
             >
-              <Plus size={20} /> Add Joiner
+              Add
             </button>
           </form>
         )}
@@ -787,8 +823,17 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className={`text-xs sm:text-sm px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold whitespace-nowrap shrink-0 mt-0.5 ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-800'}`}>
-                      {gameJoiners.length} / 6
+                    <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                      <div className={`text-xs sm:text-sm px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold whitespace-nowrap ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-800'}`}>
+                        {gameJoiners.length} / 6
+                      </div>
+                      <button 
+                        onClick={(e) => handleCopyGameInfo(e, game)}
+                        className={`p-1.5 rounded-lg transition-colors ${isFull ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        title="複製報名資訊"
+                      >
+                        {copiedGameId === game.id ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+                      </button>
                     </div>
                   </div>
                   <ul className={`divide-y ${isFull ? 'divide-orange-100 bg-white' : 'divide-slate-100 bg-white'}`}>
