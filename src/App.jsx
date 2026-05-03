@@ -9,7 +9,6 @@ export default function App() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // 取得星期幾的輔助函式
   const getWeekday = (dateStr) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
@@ -46,7 +45,6 @@ export default function App() {
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
   
-  // 刪除確認防呆狀態
   const [confirmDeleteGameId, setConfirmDeleteGameId] = useState(null);
 
   const locationOptions = ['坑口', '寶琳', '將軍澳', '單車館', '調景嶺', '其他'];
@@ -124,10 +122,8 @@ export default function App() {
 
   const cancelEditingGame = () => setEditingGameId(null);
 
-  // 新增刪除遊戲功能
   const handleDeleteGame = (id) => {
     setGames(games.filter(g => g.id !== id));
-    // 同時刪除該遊戲底下所有的參加者名單
     setJoiners(joiners.filter(j => j.gameId !== id));
     setConfirmDeleteGameId(null);
   };
@@ -167,9 +163,9 @@ export default function App() {
     return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
   };
 
-  // --- Sub-components (Views) ---
+  // --- 高度濃縮的卡片設計 ---
   const renderGamesList = (showSyncButton = true, isClickableOnHome = false) => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {games.map(game => {
         const count = getJoinerCount(game.id);
         const isFull = count >= 6;
@@ -178,7 +174,7 @@ export default function App() {
           <div 
             key={game.id} 
             onClick={() => isClickableOnHome && handleGoToRoster(game.id)}
-            className={`p-5 rounded-2xl border shadow-sm flex flex-col transition-all ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'} ${isClickableOnHome ? 'cursor-pointer hover:border-yellow-400 hover:shadow-md hover:-translate-y-1' : ''}`}
+            className={`p-4 rounded-2xl border shadow-sm flex flex-col transition-all ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'} ${isClickableOnHome ? 'cursor-pointer hover:border-yellow-400 hover:shadow-md active:scale-[0.98]' : ''}`}
           >
             {editingGameId === game.id ? (
               <div className="flex flex-col gap-3 w-full animate-in fade-in" onClick={e => e.stopPropagation()}>
@@ -220,79 +216,81 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 w-full">
-                <div className="space-y-2">
-                  <div className="font-bold text-slate-900 text-lg flex items-center flex-wrap gap-2">
-                    {game.date} {getWeekday(game.date)} <span className="text-slate-400 font-normal">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
-                    {game.courtNumber && (
-                      <>
-                        <span className="text-slate-400 font-normal">|</span>
-                        <span className="text-yellow-600">場號: {game.courtNumber}</span>
-                      </>
-                    )}
-                    <span className="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ml-1">{game.level}</span>
-                    <span className={`text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-blue-50 text-blue-700'}`}>
-                      {count} / 6 Joined
+              <div className="flex flex-col gap-2.5 w-full">
+                
+                {/* 第一排：日期與時間 */}
+                <div className="font-bold text-slate-900 text-[15px] sm:text-base tracking-tight leading-snug">
+                  {game.date} {getWeekday(game.date)} <span className="text-slate-300 font-normal mx-1.5">|</span> {game.time} - {calculateEndTime(game.time, game.duration)}
+                </div>
+                
+                {/* 第二排：地點、場號、程度標籤 */}
+                <div className="flex items-center flex-wrap gap-2 text-[13px] sm:text-sm">
+                  <span className="flex items-center gap-1 text-slate-600 font-medium">
+                    <MapPin size={14} className="text-slate-400"/> {game.location}
+                  </span>
+                  {game.courtNumber && (
+                    <>
+                      <span className="text-slate-300">|</span>
+                      <span className="text-yellow-600 font-bold">場號: {game.courtNumber}</span>
+                    </>
+                  )}
+                  <span className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ml-1">{game.level}</span>
+                </div>
+                
+                {/* 第三排：人數狀態 & 操作按鈕區 */}
+                <div className="flex items-center justify-between w-full pt-1">
+                  
+                  {/* 人數徽章 */}
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-blue-50 text-blue-700'}`}>
+                      {count} / 6 JOINED
                     </span>
-                    {isFull && <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-md font-bold tracking-wide uppercase">FULL</span>}
+                    {isFull && <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">FULL</span>}
                   </div>
-                  <div className={`flex items-center gap-1.5 font-medium ${isFull ? 'text-orange-700' : 'text-slate-500'}`}>
-                    <MapPin size={16} /> {game.location}
+                  
+                  {/* 濃縮版按鈕：移除文字與箭頭，僅保留 Icon */}
+                  <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); startEditingGame(game); }}
+                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+
+                    {confirmDeleteGameId === game.id ? (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }}
+                        className="px-2 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm text-xs"
+                      >
+                        <Trash2 size={15} /> 確定
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setConfirmDeleteGameId(game.id); 
+                          setTimeout(() => setConfirmDeleteGameId(current => current === game.id ? null : current), 3000); 
+                        }}
+                        className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+
+                    {showSyncButton && (
+                      <a 
+                        href={generateGoogleCalendarLink(game)} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className={`p-2 rounded-lg transition-colors ${isFull ? 'bg-orange-200 text-orange-800 hover:bg-orange-300' : 'bg-slate-900 text-yellow-400 hover:bg-slate-800'}`}
+                      >
+                        <CalendarPlus size={16} />
+                      </a>
+                    )}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 self-end xl:self-auto mt-2 xl:mt-0" onClick={e => e.stopPropagation()}>
-                  
-                  {/* 修改按鈕 (兩邊頁面都顯示) */}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); startEditingGame(game); }}
-                    className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
-                    title="Edit Game"
-                  >
-                    <Edit2 size={18} />
-                  </button>
 
-                  {/* 刪除按鈕與防呆機制 (兩邊頁面都顯示) */}
-                  {confirmDeleteGameId === game.id ? (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteGame(game.id); }}
-                      className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-colors shrink-0 flex items-center gap-1 shadow-sm h-[42px]"
-                    >
-                      <Trash2 size={16} /> 確定?
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setConfirmDeleteGameId(game.id); 
-                        setTimeout(() => setConfirmDeleteGameId(current => current === game.id ? null : current), 3000); 
-                      }}
-                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors shrink-0"
-                      title="Delete Game"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-
-                  {/* 同步日曆按鈕 (為了節省空間，在手機上可能需要把文字拿掉，這裡改簡短文字) */}
-                  {showSyncButton && (
-                    <a 
-                      href={generateGoogleCalendarLink(game)} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className={`${isFull ? 'bg-orange-200 text-orange-800 hover:bg-orange-300' : 'bg-slate-900 text-yellow-400 hover:bg-slate-800'} px-4 py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center gap-1.5 whitespace-nowrap h-[42px]`}
-                    >
-                      <CalendarPlus size={18} /> Sync
-                    </a>
-                  )}
-                  
-                  {/* 跳轉箭頭 (僅首頁顯示) */}
-                  {isClickableOnHome && (
-                    <div className="w-10 h-10 rounded-full bg-slate-50 hover:bg-yellow-400 hover:text-slate-900 flex items-center justify-center text-slate-400 shrink-0 transition-colors cursor-pointer ml-1">
-                      <ArrowRight size={20} />
-                    </div>
-                  )}
-                </div>
               </div>
             )}
           </div>
@@ -628,31 +626,31 @@ export default function App() {
               
               return (
                 <div id={`roster-${game.id}`} key={game.id} className={`rounded-3xl border shadow-sm overflow-hidden transition-all duration-500 ${isFull ? 'border-orange-200' : 'border-slate-200 bg-white'}`}>
-                  <div className={`border-b px-6 py-4 flex justify-between items-center ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
-                    <div className={`font-bold flex items-center flex-wrap gap-2 ${isFull ? 'text-orange-900' : 'text-slate-900'}`}>
-                      <span>{game.date} {getWeekday(game.date)} @ {game.time} - {calculateEndTime(game.time, game.duration)}</span>
+                  <div className={`border-b px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center ${isFull ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className={`font-bold flex items-center flex-wrap gap-1.5 ${isFull ? 'text-orange-900' : 'text-slate-900'}`}>
+                      <span className="text-[15px] sm:text-base">{game.date} {getWeekday(game.date)} @ {game.time} - {calculateEndTime(game.time, game.duration)}</span>
                       
                       {game.courtNumber && (
                         <>
                           <span className={`font-normal ${isFull ? 'text-orange-400' : 'text-slate-400'}`}>|</span>
-                          <span className={`${isFull ? 'text-orange-700' : 'text-yellow-600'}`}>場號: {game.courtNumber}</span>
+                          <span className={`text-[15px] sm:text-base ${isFull ? 'text-orange-700' : 'text-yellow-600'}`}>場號: {game.courtNumber}</span>
                         </>
                       )}
 
                       <span className={`font-normal ${isFull ? 'text-orange-400' : 'text-slate-400'}`}>|</span>
-                      <span className="flex items-center gap-1"><MapPin size={16}/> {game.location}</span>
-                      <span className={`text-xs px-2 py-1 rounded-md font-bold uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'}`}>
+                      <span className="flex items-center gap-1 text-[15px] sm:text-base"><MapPin size={15}/> {game.location}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider ml-0.5 ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'}`}>
                         {game.level}
                       </span>
-                      {isFull && <span className="text-orange-600 text-xs font-bold uppercase tracking-wider">(FULL)</span>}
+                      {isFull && <span className="text-orange-600 text-[10px] font-bold uppercase tracking-wider">(FULL)</span>}
                     </div>
-                    <div className={`text-sm px-3 py-1.5 rounded-lg font-bold whitespace-nowrap ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-800'}`}>
+                    <div className={`text-xs sm:text-sm px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold whitespace-nowrap ml-2 ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-800'}`}>
                       Total: {gameJoiners.length} / 6
                     </div>
                   </div>
                   <ul className={`divide-y ${isFull ? 'divide-orange-100 bg-white' : 'divide-slate-100 bg-white'}`}>
                     {gameJoiners.map((joiner, index) => (
-                      <li key={joiner.id} className="px-6 py-4 flex items-center justify-between gap-3 group hover:bg-slate-50 transition-colors">
+                      <li key={joiner.id} className="px-5 py-3 sm:px-6 sm:py-4 flex items-center justify-between gap-3 group hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-4 w-full">
                           <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm ${isFull ? 'bg-orange-100 text-orange-700' : 'bg-slate-900 text-yellow-400'}`}>
                             {index + 1}
@@ -715,8 +713,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-yellow-200 selection:text-slate-900">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+      {/* Header - 加入 z-50 與 backdrop-blur 解決重疊問題 */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div 
             className="flex items-center gap-3 text-slate-900 font-black text-2xl cursor-pointer tracking-tight"
