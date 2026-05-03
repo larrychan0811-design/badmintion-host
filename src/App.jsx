@@ -269,7 +269,7 @@ export default function App() {
     const location = encodeURIComponent(displayLocation);
     const details = encodeURIComponent('Badminton game organized via Field & Shuttle.');
 
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}&location=${location}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}`;
   };
 
   const getJoinerCount = (gameId) => {
