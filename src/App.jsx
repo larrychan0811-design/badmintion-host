@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Plus, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, ChevronLeft, ChevronRight, Activity, Trash2, Edit2, Check, X, Hash, Copy } from 'lucide-react';
+import { Calendar, Users, ArrowLeft, CalendarPlus, MapPin, Clock, Trophy, ArrowRight, ChevronLeft, ChevronRight, Activity, Trash2, Edit2, Check, X, Hash, Copy, AlertTriangle } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home'); 
@@ -9,7 +9,6 @@ export default function App() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // 安全的日期與字串格式化 (防呆機制)
   const getWeekday = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return '';
     const date = new Date(dateStr);
@@ -25,20 +24,19 @@ export default function App() {
 
   const formatLevel = (lvl) => {
     if (!lvl || typeof lvl !== 'string') return '';
+    if (lvl === '學波' || lvl === '練習場') return lvl;
     return lvl.endsWith('雙打') ? lvl : `${lvl}雙打`;
   };
 
-  // 安全的排序機制
   const sortGamesAsc = (a, b) => {
     const strA = `${a.date || ''}T${a.time || ''}`;
     const strB = `${b.date || ''}T${b.time || ''}`;
     return strA < strB ? -1 : (strA > strB ? 1 : 0);
   };
 
-  // 雙週日曆的起始日狀態 (預設為本週日)
   const [calendarStart, setCalendarStart] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - d.getDay()); // 回推到本週的星期日
+    d.setDate(d.getDate() - d.getDay()); 
     return d;
   });
 
@@ -54,13 +52,11 @@ export default function App() {
     setCalendarStart(newDate);
   };
 
-  // 產生 14 天的日曆資料
   const twoWeeks = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date(calendarStart);
     d.setDate(calendarStart.getDate() + i);
-    
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // 歸零時間以純比較日期
+    today.setHours(0, 0, 0, 0); 
     const isPast = d < today;
 
     return {
@@ -73,7 +69,6 @@ export default function App() {
     };
   });
 
-  // 計算日曆頂部的年月顯示
   const endOfWeek = new Date(calendarStart);
   endOfWeek.setDate(calendarStart.getDate() + 13);
   const startMonth = calendarStart.getMonth() + 1;
@@ -90,7 +85,6 @@ export default function App() {
     monthDisplay = `${startYear}年 ${startMonth}月`;
   }
 
-  // --- 使用 Local Storage ---
   const [games, setGames] = useState(() => {
     try {
       const savedGames = localStorage.getItem('badminton_games');
@@ -129,13 +123,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('badminton_joiners', JSON.stringify(joiners));
   }, [joiners]);
-  // ------------------------------------
 
-  // 自動過濾出今天以後的比賽
   const todayStr = getTodayStr();
   const upcomingGames = games.filter(g => g && typeof g.date === 'string' && g.date >= todayStr);
 
-  const [newGame, setNewGame] = useState({ date: getTodayStr(), time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級' });
+  const [newGame, setNewGame] = useState({ date: getTodayStr(), time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級', maxJoiners: 6 });
   const [newJoiner, setNewJoiner] = useState({ name: '', gameId: '' });
 
   useEffect(() => {
@@ -145,24 +137,22 @@ export default function App() {
   }, []);
 
   const [editingGameId, setEditingGameId] = useState(null);
-  const [editGameData, setEditGameData] = useState({ date: '', time: '', duration: 2, level: '', location: '', courtNumber: '' });
+  const [editGameData, setEditGameData] = useState({ date: '', time: '', duration: 2, level: '', location: '', courtNumber: '', maxJoiners: 6 });
   const [confirmDeleteGameId, setConfirmDeleteGameId] = useState(null);
   const [editingJoinerId, setEditingJoinerId] = useState(null);
   const [editJoinerName, setEditJoinerName] = useState('');
   const [copiedGameId, setCopiedGameId] = useState(null);
 
   const locationOptions = ['坑口', '寶琳', '將軍澳', '單車館', '調景嶺', '其他'];
-  const levelOptions = ['初級', '初-近初中', '練習場'];
+  const levelOptions = ['初級', '初-近初中', '練習場', '學波'];
   const durationOptions = [1, 1.5, 2, 2.5, 3, 3.5, 4];
   const courtOptions = [1, 2, 3, 4, 5, 6, 7, 8, '自定'];
 
-  // 生成時間選項 (僅保留整點)
   const timeOptions = [];
   for (let i = 7; i <= 23; i++) {
     timeOptions.push(`${i.toString().padStart(2, '0')}:00`);
   }
 
-  // --- Handlers ---
   const handleCreateGame = (e) => {
     e.preventDefault();
     const finalLocation = newGame.locationPreset === '其他' ? newGame.customLocation : newGame.locationPreset;
@@ -170,8 +160,11 @@ export default function App() {
 
     if (!newGame.date || !newGame.time || !finalLocation || !finalCourt) return;
     
+    const isSpecialLevel = newGame.level === '學波' || newGame.level === '練習場';
+    const finalMaxJoiners = isSpecialLevel ? (newGame.maxJoiners || 6) : 6;
+
     const gameId = crypto.randomUUID();
-    const game = { id: gameId, date: newGame.date, time: newGame.time, duration: newGame.duration, location: finalLocation, courtNumber: finalCourt, level: newGame.level };
+    const game = { id: gameId, date: newGame.date, time: newGame.time, duration: newGame.duration, location: finalLocation, courtNumber: finalCourt, level: newGame.level, maxJoiners: finalMaxJoiners };
     
     const updatedGames = [...games, game].sort(sortGamesAsc);
     setGames(updatedGames);
@@ -179,7 +172,7 @@ export default function App() {
     const joinerId = crypto.randomUUID();
     setJoiners([...joiners, { id: joinerId, name: 'Larry', gameId: gameId }]);
     
-    setNewGame({ date: newGame.date, time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級' });
+    setNewGame({ date: newGame.date, time: '18:00', duration: 2, locationPreset: '坑口', customLocation: '', courtPreset: '1', customCourt: '', level: '初級', maxJoiners: 6 });
   };
 
   const handleDeleteGame = (id) => {
@@ -192,7 +185,10 @@ export default function App() {
     e.preventDefault();
     if (!newJoiner.name || !newJoiner.gameId) return;
 
-    if (getJoinerCount(newJoiner.gameId) >= 6) {
+    const targetGame = games.find(g => g.id === newJoiner.gameId);
+    const maxCapacity = targetGame ? (targetGame.maxJoiners || 6) : 6;
+
+    if (getJoinerCount(newJoiner.gameId) >= maxCapacity) {
       alert("This game is already full!");
       return;
     }
@@ -230,7 +226,8 @@ export default function App() {
       duration: game.duration || 2,
       level: game.level || '',
       location: game.location || '',
-      courtNumber: game.courtNumber || ''
+      courtNumber: game.courtNumber || '',
+      maxJoiners: game.maxJoiners || 6
     });
   };
 
@@ -272,7 +269,7 @@ export default function App() {
     const location = encodeURIComponent(displayLocation);
     const details = encodeURIComponent('Badminton game organized via Field & Shuttle.');
 
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateTime}/${endDateTime}&details=${details}&location=${location}`;
   };
 
   const getJoinerCount = (gameId) => {
@@ -290,7 +287,6 @@ export default function App() {
     return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
   };
 
-  // 複製格式化內容
   const handleCopyGameInfo = (e, game) => {
     e.stopPropagation();
     const d = new Date(game.date);
@@ -323,16 +319,32 @@ export default function App() {
     document.body.removeChild(textArea);
   };
 
-  // --- Sub-components (Views) ---
+  const handleClearCorruptedData = () => {
+    if(window.confirm("警告：這將會清除本機所有比賽與名單資料。確定要清除嗎？")) {
+      localStorage.removeItem('badminton_games');
+      localStorage.removeItem('badminton_joiners');
+      window.location.reload();
+    }
+  };
 
   const renderGamesList = (gamesArray, showSyncButton = true, isClickableOnHome = false) => (
     <div className="space-y-3">
       {gamesArray.map(game => {
         if (!game) return null;
         const count = getJoinerCount(game.id);
-        const isFull = count >= 6;
+        const maxJoiners = game.maxJoiners || 6;
+        const isFull = count >= maxJoiners;
         const displayLocation = formatLocation(game.location);
         const displayLevel = formatLevel(game.level);
+        
+        let levelColorClass = 'bg-slate-100 text-slate-700';
+        if (isFull) {
+          levelColorClass = 'bg-orange-200 text-orange-900';
+        } else if (game.level === '學波') {
+          levelColorClass = 'bg-red-100 text-red-800';
+        } else if (game.level === '練習場') {
+          levelColorClass = 'bg-emerald-100 text-emerald-800';
+        }
         
         return (
           <div 
@@ -369,6 +381,12 @@ export default function App() {
                       {levelOptions.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
+                  {(editGameData.level === '學波' || editGameData.level === '練習場') && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-500">上限人數</label>
+                      <input type="number" min="1" max="30" value={editGameData.maxJoiners} onChange={e => setEditGameData({...editGameData, maxJoiners: parseInt(e.target.value) || 6})} className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-yellow-400 text-sm font-medium bg-slate-50 text-slate-900" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-slate-500">Location</label>
                     <input type="text" value={editGameData.location} onChange={e => setEditGameData({...editGameData, location: e.target.value})} className="w-full px-3 py-2.5 border-2 border-slate-200 rounded-xl outline-none focus:border-yellow-400 text-sm font-medium bg-slate-50 text-slate-900" placeholder="Location" />
@@ -397,7 +415,7 @@ export default function App() {
                     </>
                   )}
                   {displayLevel && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wider ml-1 ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-100 text-slate-700'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wider ml-1 ${levelColorClass}`}>
                       {displayLevel}
                     </span>
                   )}
@@ -406,7 +424,7 @@ export default function App() {
                 <div className="flex items-center justify-between w-full pt-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className={`text-[10px] px-2 py-0.5 rounded font-medium uppercase tracking-wider ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-blue-50 text-blue-700'}`}>
-                      {count} / 6 JOINED
+                      {count} / {maxJoiners} JOINED
                     </span>
                     {isFull && <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">FULL</span>}
                   </div>
@@ -522,7 +540,6 @@ export default function App() {
           
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><Calendar size={18} className="text-slate-400"/> Select Date</label>
-            {/* 雙週日曆 (僅顯示 14 天) */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <button type="button" onClick={handlePrevWeeks} className="p-2 hover:bg-slate-200 text-slate-600 rounded-full transition-colors"><ChevronLeft size={20}/></button>
@@ -659,7 +676,7 @@ export default function App() {
 
           <div className="space-y-3">
             <label className="text-sm font-bold text-slate-900 flex items-center gap-2"><Activity size={18} className="text-slate-400"/> Match Level</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {levelOptions.map(level => {
                 const isSelected = newGame.level === level;
                 return (
@@ -683,11 +700,24 @@ export default function App() {
                 );
               })}
             </div>
+            {/* 當選擇「學波」或「練習場」時，顯示設定上限人數的選項 */}
+            {(newGame.level === '學波' || newGame.level === '練習場') && (
+              <div className="pt-2 animate-in fade-in slide-in-from-top-2">
+                <div className="flex flex-row items-center gap-3 bg-slate-50 p-3 rounded-xl border-2 border-slate-100">
+                  <label className="text-[13px] sm:text-sm font-bold text-slate-700">設定人數上限:</label>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setNewGame(prev => ({...prev, maxJoiners: Math.max(1, (prev.maxJoiners || 6) - 1)}))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-slate-600 shadow-sm">-</button>
+                    <span className="font-bold text-base w-6 text-center text-slate-900">{newGame.maxJoiners || 6}</span>
+                    <button type="button" onClick={() => setNewGame(prev => ({...prev, maxJoiners: (prev.maxJoiners || 6) + 1}))} className="w-8 h-8 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 flex items-center justify-center font-bold text-slate-600 shadow-sm">+</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <button 
             type="submit"
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2 text-[15px] sm:text-lg mt-2"
+            className="w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-bold py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center text-[15px] sm:text-lg mt-2"
           >
             Create
           </button>
@@ -704,7 +734,7 @@ export default function App() {
   );
 
   const JoinersView = () => {
-    const selectedGameIsFull = newJoiner.gameId ? getJoinerCount(newJoiner.gameId) >= 6 : false;
+    const selectedGameIsFull = newJoiner.gameId ? getJoinerCount(newJoiner.gameId) >= (games.find(g => g.id === newJoiner.gameId)?.maxJoiners || 6) : false;
 
     return (
       <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -736,13 +766,14 @@ export default function App() {
               >
                 <option value="" disabled>Choose a scheduled game...</option>
                 {upcomingGames.map(game => {
-                  const isFull = getJoinerCount(game.id) >= 6;
+                  const maxCapacity = game.maxJoiners || 6;
+                  const isFull = getJoinerCount(game.id) >= maxCapacity;
                   const displayLocation = formatLocation(game.location);
                   const displayLevel = formatLevel(game.level);
 
                   return (
                     <option key={game.id} value={game.id} disabled={isFull}>
-                      {game.date} | {game.time}-{calculateEndTime(game.time, game.duration)} {game.courtNumber ? `(場:${game.courtNumber})` : ''} | {displayLocation} {isFull ? '(FULL)' : ''}
+                      {game.date} | {game.time}-{calculateEndTime(game.time, game.duration)} {game.courtNumber ? `(場:${game.courtNumber})` : ''} | {displayLocation} {isFull ? `(FULL - Max ${maxCapacity})` : ''}
                     </option>
                   );
                 })}
@@ -753,7 +784,7 @@ export default function App() {
               <div className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-2.5 rounded-xl flex items-center justify-between mt-2">
                 <span className="font-semibold text-xs sm:text-sm">Current Headcount:</span>
                 <span className="font-bold text-xs sm:text-sm bg-white px-2.5 py-1 rounded-lg shadow-sm text-slate-900 border border-slate-100">
-                  {getJoinerCount(newJoiner.gameId)} joined
+                  {getJoinerCount(newJoiner.gameId)} / {games.find(g => g.id === newJoiner.gameId)?.maxJoiners || 6} joined
                 </span>
               </div>
             )}
@@ -774,7 +805,7 @@ export default function App() {
             <button 
               type="submit"
               disabled={selectedGameIsFull}
-              className={`w-full font-bold py-3 sm:py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center gap-2 text-[15px] sm:text-base mt-2 ${selectedGameIsFull ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-yellow-400 hover:bg-yellow-500 text-slate-900'}`}
+              className={`w-full font-bold py-3 sm:py-3.5 rounded-xl shadow-sm transition-colors flex justify-center items-center text-[15px] sm:text-base mt-2 ${selectedGameIsFull ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-yellow-400 hover:bg-yellow-500 text-slate-900'}`}
             >
               Add
             </button>
@@ -790,9 +821,19 @@ export default function App() {
               const gameJoiners = joiners.filter(j => j.gameId === game.id);
               if (gameJoiners.length === 0) return null;
               
-              const isFull = gameJoiners.length >= 6;
+              const maxJoiners = game.maxJoiners || 6;
+              const isFull = gameJoiners.length >= maxJoiners;
               const displayLocation = formatLocation(game.location);
               const displayLevel = formatLevel(game.level);
+              
+              let levelColorClass = 'bg-slate-200 text-slate-700';
+              if (isFull) {
+                levelColorClass = 'bg-orange-200 text-orange-900';
+              } else if (game.level === '學波') {
+                levelColorClass = 'bg-red-100 text-red-800';
+              } else if (game.level === '練習場') {
+                levelColorClass = 'bg-emerald-100 text-emerald-800';
+              }
               
               return (
                 <div id={`roster-${game.id}`} key={game.id} className={`rounded-3xl border shadow-sm overflow-hidden transition-all duration-500 ${isFull ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-white'}`}>
@@ -815,7 +856,7 @@ export default function App() {
                       <div className="flex items-center flex-wrap gap-1.5 text-[13px] sm:text-sm text-slate-500 font-medium mt-1">
                         <span className="flex items-center gap-1 text-slate-600"><MapPin size={14}/> {displayLocation}</span>
                         {displayLevel && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ml-0.5 ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-700'}`}>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ml-0.5 ${levelColorClass}`}>
                             {displayLevel}
                           </span>
                         )}
@@ -825,7 +866,7 @@ export default function App() {
 
                     <div className="flex items-center gap-2 shrink-0 mt-0.5">
                       <div className={`text-xs sm:text-sm px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg font-bold whitespace-nowrap ${isFull ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-800'}`}>
-                        {gameJoiners.length} / 6
+                        {gameJoiners.length} / {maxJoiners}
                       </div>
                       <button 
                         onClick={(e) => handleCopyGameInfo(e, game)}
@@ -929,6 +970,16 @@ export default function App() {
         {currentView === 'games' && GamesView()}
         {currentView === 'joiners' && JoinersView()}
       </main>
+
+      <footer className="shrink-0 w-full py-6 mt-auto text-center flex flex-col items-center justify-center gap-2">
+        <button 
+          onClick={handleClearCorruptedData}
+          className="flex items-center gap-1 text-[10px] text-slate-300 hover:text-red-400 transition-colors opacity-50 hover:opacity-100 px-2 py-1"
+          title="緊急修復用：清除所有儲存的異常資料"
+        >
+          <AlertTriangle size={10} /> 系統異常白畫面時，點此清除手機暫存資料
+        </button>
+      </footer>
     </div>
   );
 }
